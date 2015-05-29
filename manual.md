@@ -62,7 +62,7 @@ There is also a list of scripts present:
 - Wait a while for the preprocessing script to complete.
 - If everything completes successfully, you will see a CSV file by the name `[handle] Full Isolates.csv`. 
 - Clean up the directory by running the following command in the terminal:
-    - `mv \*.sh.\* sge_outputs/.`
+    - `mv *.sh.* sge_outputs/.`
     - `cd ..`
 
 ## Step 2: Splitting FASTA file by segment
@@ -76,7 +76,7 @@ There is also a list of scripts present:
 - Wait until all of the jobs have been run.
 - You should see all 8 segments being processed and written to disk. They will be in the directory `/split_fasta/[Handle] Segment [Number].fasta`
 - While in the `shell_scripts` directory, clean up the directory by running the following commands:
-- `mv \*.sh.\* ../sge_outputs/.` 
+- `mv *.sh.* ../sge_outputs/.` 
 - `cd ..`
 
 ## Step 3: Alignment and Distance Matrix Generation
@@ -89,7 +89,7 @@ There is also a list of scripts present:
     - `qsub align.sh`
 - Wait until all of the jobs have been run. On a large dataset, it’ll take a while - on the order of hours, depending on CPU usage and data size. 
 - While in the `shell_scripts` directory, clean up the directory by running the following commands:
-    - `mv \*.sh.\* ../sge_outputs/.`
+    - `mv *.sh.* ../sge_outputs/.`
     - `cd ..`
 
 ## Step 4: Convert Distance Matrix into Thresholded Similarity Matrix, and Rename the Index/Columns.
