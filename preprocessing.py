@@ -8,94 +8,132 @@ import sys
 from Bio import SeqIO
 
 class Preprocessor(object):
-	"""docstring for Preprocessor"""
-	def __init__(self, handle):
-		super(Preprocessor, self).__init__()
-		self.handle = handle
-		self.df = None
-		self.fasta = None
+    """docstring for Preprocessor"""
+    def __init__(self, handle):
+        super(Preprocessor, self).__init__()
+        self.handle = handle
+        self.df = None
+        self.fasta = None
 
-		# Curate a list if strain names to exclude from the analysis.
-		self.strain_name_exclusions = ['little yellow-shouldered bat']
+        # Curate a list of strain names to exclude from the analysis.
+        self.strain_name_exclusions = ['little yellow-shouldered bat']
 
-	def run(self):
+    def run(self):
 
-		self.read_dataframe()
-		self.clean_strain_names()
-		self.remove_excluded_strains()
-		self.clean_host_species()
-		self.impute_location()
-		self.remove_low_quality_accessions()
-		self.impute_dates()
-		self.get_complete_genome_isolates()
-		self.save_full_isolates()
+        self.read_dataframe()
+        self.clean_strain_names()
+        self.remove_excluded_strains()
+        self.remove_isolates_with_bad_names()
+        self.clean_host_species()
+        self.impute_location()
+        self.remove_low_quality_accessions()
+        self.impute_dates()
+        self.get_complete_genome_isolates()
+        self.save_full_isolates()
 
-	def remove_excluded_strains(self):
-		for name in self.strain_name_exclusions:
-			self.df = self.df[self.df['Strain Name'].str.contains(name) == False]
+    def remove_excluded_strains(self):
+        for name in self.strain_name_exclusions:
+            self.df = self.df[self.df['Strain Name'].str.contains(name) == False]
 
-	def read_dataframe(self):
-		"""
-		Reads the CSV file containing the data into memory.
-		"""
+    def remove_isolates_with_bad_names(self):
+        print('Removing isolates with bad names...')
+        allowed_lengths = [4, 5]
+        names_to_drop = set()
+        for row, data in self.df.iterrows():
+            strain_name = data['Strain Name'].split('/')
 
-		self.df = pd.read_csv('{0} Sequences.csv'.format(self.handle), parse_dates=['Collection Date'], na_filter=False)
+            if len(strain_name) not in allowed_lengths:
+                names_to_drop.add(data['Strain Name'])
 
-	def read_fasta(self):
-		self.fasta = SeqIO.to_dict(SeqIO.parse('{0} Sequences.fasta'.format(self.handle), 'fasta'))
+        for name in names_to_drop:
+            self.df = self.df[self.df['Strain Name'] != name]
 
-	def clean_strain_names(self):
-		"""
-		This function removes parentheses from the strain names, leaving only the strain name without any other info.
-		"""
+        print('Isolates with bad names removed.')
 
-		self.df['Strain Name'] = self.df['Strain Name'].str.replace("\\", "/")
-   		self.df['Strain Name'] = self.df['Strain Name'].str.split("(").apply(lambda x: max(x, key=len))
 
-	def clean_host_species(self):
-		"""
-		Host species are usually stored as IRD:hostname. 
-		"""
-		self.df['Host Species'] = self.df['Host Species'].str.split(':').str[-1]
+    def read_dataframe(self):
+        """
+        Reads the CSV file containing the data into memory.
+        """
+        print('Reading DataFrame into memory...')
+        self.df = pd.read_csv('{0} Sequences.csv'.format(self.handle), parse_dates=['Collection Date'], na_filter=False)
+        print('DataFrame read into memory.')
 
-	def impute_location(self):
-		self.df['State/Province'] = self.df['Strain Name'].str.split("/").apply(lambda x: x[1] if len(x) == 4 else x[2])
+    def read_fasta(self):
+        print('Reading FASTA file into memory...')
+        self.fasta = SeqIO.to_dict(SeqIO.parse('{0} Sequences.fasta'.format(self.handle), 'fasta'))
+        print('FASTA file read into memory.')
 
-	def impute_dates(self):
-		self.df['Collection Date'] = pd.to_datetime(self.df['Collection Date'])
+    def clean_strain_names(self):
+        """
+        This function removes parentheses from the strain names, leaving only
+        the strain name without any other info.
+        """
+        print('Cleaning strain names...')
+        self.df['Strain Name'] = self.df['Strain Name'].str.replace("\\", "/")
+        self.df['Strain Name'] = self.df['Strain Name'].str.split("(").apply(lambda x: max(x, key=len))
+        print('Strain names cleaned.')
 
-	def remove_low_quality_accessions(self):
-		self.df = self.df[self.df['Sequence Accession'].str.contains('\*') == False]
+    def clean_host_species(self):
+        """
+        Host species are usually stored as IRD:hostname. 
+        """
+        print('Cleaning host species names...')
+        self.df['Host Species'] = self.df['Host Species'].str.split(':').str[-1]
+        print('Host species names cleaned.')
 
-	def get_complete_genome_isolates(self):
-		rows_to_drop = []
+    def impute_location(self):
+        print('Imputing location data...')
+        self.df['State/Province'] = self.df['Strain Name'].str.split("/").apply(lambda x: x[1] if len(x) == 4 else x[2])
+        print('Location imputed.')
 
-		for name, df in self.df.groupby('Strain Name'):
-			if len(df) == 8 and set(df['Segment'].values) == set(range(1,9)):
-				pass
-			else:
-				rows_to_drop.extend(df.index)
+    def impute_dates(self):
+        print('Imputing collection date data...')
+        self.df['Collection Date'] = pd.to_datetime(self.df['Collection Date'])
+        print('Collection dates imputed.')
 
-		self.df = self.df.drop(rows_to_drop)
+    def remove_low_quality_accessions(self):
+        print('Removing low quality accessions...')
+        self.df = self.df[self.df['Sequence Accession'].str.contains('\*') == False]
+        print('Low quality accessions removed.')
 
-	def save_full_isolates(self):
-		self.df.to_csv('{0} Full Isolates.csv'.format(self.handle))
+    def get_complete_genome_isolates(self):
+        print('Filtering to completed genomes only...')
+        rows_to_drop = []
 
-	def write_segment_fasta(self, segnum):
-		accessions = self.df.groupby('Segment').get_group(segnum)['Sequence Accession'].values
+        for name, df in self.df.groupby('Strain Name'):
+            if len(df) == 8 and set(df['Segment'].values) == set(range(1,9)):
+                pass
+            else:
+                rows_to_drop.extend(df.index)
 
-		if set(accessions).issubset(set(self.fasta.keys())):
-			sequences = [record for accession, record in self.fasta.items() if accession in accessions]
+        self.df = self.df.drop(rows_to_drop)
 
-			with open('{0} Segment {1}.fasta'.format(self.handle, segnum), 'w+') as f:
-				SeqIO.write(sequences, f, 'fasta')
+        print('Filtering complete.')
 
-		else:
-			raise Exception("Not all requested accessions in original download.")
+    def save_full_isolates(self):
+        print('Saving data table comprising only isolates with full genomes...')
+        self.df.to_csv('{0} Full Isolates.csv'.format(self.handle))
+        print('Full genome isolates saved.')
 
+
+    def write_segment_fasta(self, segnum):
+        print('Writing segment FASTA files...')
+        accessions = self.df.groupby('Segment').get_group(segnum)['Sequence Accession'].values
+
+        if set(accessions).issubset(set(self.fasta.keys())):
+            sequences = [record for accession, record in self.fasta.items() if accession in accessions]
+
+            with open('{0} Segment {1}.fasta'.format(self.handle, segnum), 'w+') as f:
+                SeqIO.write(sequences, f, 'fasta')
+
+        else:
+            raise Exception("Not all requested accessions in original download.")
+
+        print('Segment FASTA files written.')
 
 if __name__ == '__main__':
-	handle = sys.argv[1]
+    handle = sys.argv[1]
 
-	p = Preprocessor(handle)
-	p.run()
+    p = Preprocessor(handle)
+    p.run()
