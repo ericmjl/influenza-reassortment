@@ -33,7 +33,8 @@ class MedianDownsampler(object):
     def read_data(self):
         self.df = pd.read_csv('{0} Full Isolates.csv'.format(self.handle),
                               index_col=0,
-                              parse_dates=['Collection Date'])
+                              parse_dates=['Collection Date'],
+                              na_filter=False)
 
     def initialize_graph(self):
         for g, d in self.df.groupby(['Strain Name', 'Subtype']):
@@ -66,10 +67,15 @@ class MedianDownsampler(object):
 
         return downsampled_df
 
+    def checkdir(self, dirname):
+        if dirname not in os.listdir(os.getcwd()):
+            os.mkdir(dirname)
+
     def write_downsampled_isolates(self, n):
+        self.checkdir('run{0}'.format(n))
         self.median_downsampled_isolates.to_csv(
-            'downsampled/{0} Downsampled Isolates Run {1}.csv'.format(sample, 
-                                                                      n))
+            'run{1}/{0} Downsampled Isolates Run {1}.csv'.format(sample, 
+                                                                 n))
 
 if __name__ == '__main__':
 
