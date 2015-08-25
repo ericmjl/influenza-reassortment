@@ -74,8 +74,7 @@ class MedianDownsampler(object):
     def write_downsampled_isolates(self, n):
         self.checkdir('run{0}'.format(n))
         self.median_downsampled_isolates.to_csv(
-            'run{1}/{0} Downsampled Isolates Run {1}.csv'.format(sample, 
-                                                                 n))
+            'run{0}/{1} Full Isolates.csv'.format(n, sample))
 
 if __name__ == '__main__':
 
@@ -83,4 +82,3 @@ if __name__ == '__main__':
     n_samples = sys.argv[2]
     md = MedianDownsampler(handle)
     md.run()
-
